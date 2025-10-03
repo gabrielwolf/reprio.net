@@ -146,7 +146,16 @@
     const importBtn = document.getElementById("importBtn");
     const fileInput = document.getElementById("fileInput");
 
-    let queue = JSON.parse(localStorage.getItem("queue")) || [];
+    // Load queue from localStorage or use default if empty
+    let queue = JSON.parse(localStorage.getItem("queue"));
+    if (!queue || !Array.isArray(queue) || queue.length === 0) {
+        queue = [
+            { "task": "Go to bed early", "priority": 1 },
+            { "task": "Offer someone a hug", "priority": 2 },
+            { "task": "By flowers", "priority": 3 }
+        ];
+        localStorage.setItem("queue", JSON.stringify(queue));
+    }
 
     function saveQueue() {
         localStorage.setItem("queue", JSON.stringify(queue));
