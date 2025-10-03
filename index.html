@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>reprio.net - Your personal priority queue</title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Avenir Next, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        header, main, footer {
+            padding: 1rem;
+        }
+
+        main {
+            padding: 4rem;
+            background: #def;
+        }
+
+        h1, h2 {
+            font-weight: 500;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 4vw + 1rem, 2.25rem);
+            margin: -0.9rem 0 0.8rem;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw + 1rem, 2.5rem);
+            margin: 0 auto 1.5rem 3rem;
+        }
+
+        p {
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        input {
+            padding: 0.5rem;
+        }
+
+        #taskInput {
+            width: auto;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 1rem;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #aaa;
+            padding: 0.5rem;
+        }
+
+        th {
+            text-align: left;
+            background-color: #eee;
+        }
+
+        th:nth-child(2),
+        th:nth-child(3),
+        td:nth-child(2),
+        td:nth-child(3) {
+            text-align: center;
+            width: 1%;
+            white-space: nowrap;
+        }
+
+        th:nth-child(1) {
+            width: auto;
+        }
+
+        td[contenteditable="true"] {
+            outline: none;
+        }
+
+        td {
+            background-color: #fafafa;
+        }
+
+        button {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>reprio.net</h1>
+    <h2>A simple online priority queue for organising your tasks</h2>
+    <ul>
+        <li>Add a task: 1. Type it 2. Type the priority 3. Press return.</li>
+        <li>Change a task: 1. Select it 2. Change it. 3. Leave the cell.</li>
+        <li>Security: Your data is stored in the browser (via localStorage).<br>
+            Press reset, or delete your browser’s cache and you’re safe.<br>
+            But remember, everyone with access to your computer and browser can read... no magic here.
+        </li>
+        <li>Backup: Press the import and export buttons. (Downloads a file in JSON format.)</li>
+    </ul>
+    <p>That’s it. Happy prioritising! :)</p>
+</header>
+<main>
+    <div style="display: flex; align-items: center; width: 100%; gap: 0.5rem;">
+        <label for="taskInput" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">Task</label>
+        <input type="text" id="taskInput" placeholder="Write your task here..." style="flex: 1;">
+        <label for="priorityInput" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">Priority</label>
+        <input type="number" id="priorityInput" min="1" max="10" placeholder="1-10" style="width: 5rem;">
+    </div>
+    <table id="queueTable">
+        <thead>
+        <tr>
+            <th>Task</th>
+            <th>Priority</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <br>
+    <div>
+        <button id="resetBtn">Reset</button>
+        <button id="exportBtn">Export (.json)</button>
+        <button id="importBtn">Import (.json)</button>
+        <input type="file" id="fileInput" accept="application/json" style="display:none">
+    </div>
+</main>
+<footer>
+    A non-commercial open source experiment by Gabriel Wolf
+</footer>
+<script>
+    const taskInput = document.getElementById("taskInput");
+    const priorityInput = document.getElementById("priorityInput");
+    const tableBody = document.querySelector("#queueTable tbody");
+    const resetBtn = document.getElementById("resetBtn");
+    const exportBtn = document.getElementById("exportBtn");
+    const importBtn = document.getElementById("importBtn");
+    const fileInput = document.getElementById("fileInput");
+
+    let queue = JSON.parse(localStorage.getItem("queue")) || [];
+
+    function saveQueue() {
+        localStorage.setItem("queue", JSON.stringify(queue));
+    }
+
+    function renderTable() {
+        queue.sort((a, b) => a.priority - b.priority);
+        tableBody.innerHTML = "";
+
+        queue.forEach((item, index) => {
+            const row = document.createElement("tr");
+
+            const taskCell = document.createElement("td");
+            taskCell.textContent = item.task;
+            taskCell.contentEditable = "true";
+            taskCell.setAttribute("spellcheck", "false");
+            taskCell.addEventListener("input", () => {
+                if (taskCell.innerHTML !== taskCell.textContent) {
+                    taskCell.textContent = taskCell.textContent.toString();
+                }
+            });
+            taskCell.addEventListener("blur", () => {
+                queue[index].task = taskCell.textContent.trim();
+                saveQueue();
+            });
+
+            const priorityCell = document.createElement("td");
+            priorityCell.textContent = item.priority;
+            priorityCell.contentEditable = "true";
+            priorityCell.setAttribute("spellcheck", "false");
+            priorityCell.addEventListener("blur", () => {
+                let newValue = parseInt(priorityCell.textContent);
+                if (!isNaN(newValue) && newValue >= 1 && newValue <= 10) {
+                    queue[index].priority = newValue;
+                } else {
+                    priorityCell.textContent = queue[index].priority;
+                    alert("Bitte eine Zahl zwischen 1 und 10 eingeben!");
+                }
+                renderTable();
+            });
+
+            const actionCell = document.createElement("td");
+            const delBtn = document.createElement("button");
+            delBtn.textContent = "Delete";
+            delBtn.addEventListener("click", () => deleteTask(index));
+            actionCell.appendChild(delBtn);
+
+            row.appendChild(taskCell);
+            row.appendChild(priorityCell);
+            row.appendChild(actionCell);
+            tableBody.appendChild(row);
+        });
+
+        saveQueue();
+    }
+
+    function addToQueue() {
+        const task = taskInput.value.trim();
+        const priority = parseInt(priorityInput.value);
+        if (task && !isNaN(priority) && priority >= 1 && priority <= 10) {
+            queue.push({task, priority});
+            renderTable();
+            taskInput.value = "";
+            priorityInput.value = "";
+            taskInput.focus();
+        }
+    }
+
+    function deleteTask(index) {
+        queue.splice(index, 1);
+        renderTable();
+    }
+
+    // Reset
+    resetBtn.addEventListener("click", () => {
+        if (confirm("Do you really want to delete everything?")) {
+            queue = [];
+            renderTable();
+        }
+    });
+
+    // Export
+    exportBtn.addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify(queue, null, 2)], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "todo-queue.json";
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    // Import
+    importBtn.addEventListener("click", () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(String(event.target.result));
+                if (Array.isArray(imported)) {
+                    queue = imported.map(item => ({
+                        task: String(item.task || ""),
+                        priority: parseInt(item.priority) || 10
+                    }));
+                    renderTable();
+                } else {
+                    alert("Invalid JSON format!");
+                }
+            } catch (err) {
+                alert("Error during import: " + err.message);
+            }
+        };
+        reader.readAsText(file);
+        fileInput.value = ""; // reset for next import
+    });
+
+    taskInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") addToQueue();
+    });
+    priorityInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") addToQueue();
+    });
+
+    renderTable();
+</script>
+</body>
+</html>
