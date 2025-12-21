@@ -99,7 +99,7 @@
     <h1>reprio.net</h1>
     <h2>A simple online priority queue for organising your tasks</h2>
     <ul>
-        <li>Add a task: 1. Type it 2. Type the priority 3. Press return.</li>
+        <li>Add a task: 1. Type it 2. Type the priority 3. Press return (or leave the cell by pressing tab).</li>
         <li>Change a task: 1. Select it 2. Change it. 3. Leave the cell.</li>
         <li>Security: Your data is stored in the browser (via localStorage).<br>
             Press reset, or delete your browser’s cache and you’re safe.<br>
@@ -112,7 +112,7 @@
 <main>
     <div style="display: flex; align-items: center; width: 100%; gap: 0.5rem;">
         <label for="taskInput" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">Task</label>
-        <input type="text" id="taskInput" placeholder="Write your task here..." style="flex: 1;">
+        <input type="text" id="taskInput" placeholder="Write your task here..." style="flex: 1;" autofocus>
         <label for="priorityInput" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">Priority</label>
         <input type="number" id="priorityInput" min="1" max="10" placeholder="1-10" style="width: 5rem;">
     </div>
