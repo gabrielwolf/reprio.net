@@ -146,19 +146,54 @@
     const importBtn = document.getElementById("importBtn");
     const fileInput = document.getElementById("fileInput");
 
-    // Load queue from localStorage or use default if empty
-    let queue = JSON.parse(localStorage.getItem("queue"));
-    if (!queue || !Array.isArray(queue) || queue.length === 0) {
-        queue = [
-            { "task": "Go to bed early", "priority": 1 },
-            { "task": "Offer someone a hug", "priority": 2 },
-            { "task": "By flowers", "priority": 3 }
-        ];
-        localStorage.setItem("queue", JSON.stringify(queue));
+    // Generate stable ids for rows (needed to restore focus after re-render)
+    function newId() {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+        return String(Date.now()) + "-" + Math.random().toString(16).slice(2);
     }
 
     function saveQueue() {
         localStorage.setItem("queue", JSON.stringify(queue));
+    }
+
+    // When we re-render (e.g. after changing priority), we can restore focus to the next cell
+    let pendingFocus = null; // { itemId: string, field: "task" | "priority" }
+
+    function placeCaretAtEnd(el) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        if (!sel) return;
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    function focusEditableCell(itemId, field) {
+        if (!itemId || !field) return;
+        const selector = `td[contenteditable="true"][data-item-id="${itemId}"][data-field="${field}"]`;
+        const cell = tableBody.querySelector(selector);
+        if (!cell) return;
+        cell.focus();
+        placeCaretAtEnd(cell);
+    }
+
+    function handleEditableTab(e) {
+        if (e.key !== "Tab") return;
+        const cells = Array.from(tableBody.querySelectorAll('td[contenteditable="true"]'));
+        const current = e.currentTarget;
+        const idx = cells.indexOf(current);
+        if (idx === -1 || cells.length === 0) return;
+
+        const dir = e.shiftKey ? -1 : 1;
+        const next = cells[(idx + dir + cells.length) % cells.length];
+
+        // Remember where we want to go in case a blur triggers renderTable()
+        pendingFocus = { itemId: next.dataset.itemId, field: next.dataset.field };
+
+        e.preventDefault();
+        next.focus();
+        placeCaretAtEnd(next);
     }
 
     // Insert plain text at the current caret position (avoids HTML insertion and keeps the cursor stable)
@@ -168,11 +203,29 @@
         const range = sel.getRangeAt(0);
         range.deleteContents();
         range.insertNode(document.createTextNode(text));
-        // Move caret to end of inserted text
         range.collapse(false);
         sel.removeAllRanges();
         sel.addRange(range);
     }
+
+    // Load queue from localStorage or use default if empty
+    let queue = JSON.parse(localStorage.getItem("queue"));
+    if (!queue || !Array.isArray(queue) || queue.length === 0) {
+        queue = [
+            { id: newId(), task: "Go to bed early", priority: 1 },
+            { id: newId(), task: "Offer someone a hug", priority: 2 },
+            { id: newId(), task: "By flowers", priority: 3 }
+        ];
+        saveQueue();
+    }
+
+    // Backward-compatible: add missing ids
+    queue = queue.map((item) => ({
+        id: item && item.id ? String(item.id) : newId(),
+        task: String(item && item.task != null ? item.task : ""),
+        priority: parseInt(item && item.priority != null ? item.priority : 10)
+    }));
+    saveQueue();
 
     function renderTable() {
         queue.sort((a, b) => a.priority - b.priority);
@@ -185,7 +238,10 @@
             taskCell.textContent = item.task;
             taskCell.contentEditable = "true";
             taskCell.setAttribute("spellcheck", "false");
-            // Keep edits as plain text and prevent line breaks
+            taskCell.tabIndex = 0;
+            taskCell.dataset.itemId = item.id;
+            taskCell.dataset.field = "task";
+
             taskCell.addEventListener("paste", (e) => {
                 e.preventDefault();
                 const text = (e.clipboardData || window.clipboardData).getData("text/plain");
@@ -195,10 +251,12 @@
                 if (e.key === "Enter") {
                     e.preventDefault();
                     taskCell.blur();
+                    return;
                 }
+                handleEditableTab(e);
             });
             taskCell.addEventListener("blur", () => {
-                queue[index].task = taskCell.textContent.trim();
+                queue[index].task = taskCell.textContent;
                 saveQueue();
             });
 
@@ -206,10 +264,22 @@
             priorityCell.textContent = item.priority;
             priorityCell.contentEditable = "true";
             priorityCell.setAttribute("spellcheck", "false");
+            priorityCell.tabIndex = 0;
+            priorityCell.dataset.itemId = item.id;
+            priorityCell.dataset.field = "priority";
+
             priorityCell.addEventListener("paste", (e) => {
                 e.preventDefault();
                 const text = (e.clipboardData || window.clipboardData).getData("text/plain");
                 insertTextAtCursor(text);
+            });
+            priorityCell.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    priorityCell.blur();
+                    return;
+                }
+                handleEditableTab(e);
             });
             priorityCell.addEventListener("blur", () => {
                 let newValue = parseInt(priorityCell.textContent);
@@ -235,13 +305,19 @@
         });
 
         saveQueue();
+
+        if (pendingFocus) {
+            const { itemId, field } = pendingFocus;
+            pendingFocus = null;
+            setTimeout(() => focusEditableCell(itemId, field), 0);
+        }
     }
 
     function addToQueue() {
         const task = taskInput.value.trim();
         const priority = parseInt(priorityInput.value);
         if (task && !isNaN(priority) && priority >= 1 && priority <= 10) {
-            queue.push({task, priority});
+            queue.push({ id: newId(), task, priority });
             renderTable();
             taskInput.value = "";
             priorityInput.value = "";
@@ -287,8 +363,9 @@
                 const imported = JSON.parse(String(event.target.result));
                 if (Array.isArray(imported)) {
                     queue = imported.map(item => ({
-                        task: String(item.task || ""),
-                        priority: parseInt(item.priority) || 10
+                        id: item && item.id ? String(item.id) : newId(),
+                        task: String(item && item.task != null ? item.task : ""),
+                        priority: parseInt(item && item.priority != null ? item.priority : 10)
                     }));
                     renderTable();
                 } else {
