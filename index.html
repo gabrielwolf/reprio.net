@@ -379,11 +379,31 @@
         fileInput.value = ""; // reset for next import
     });
 
-    taskInput.addEventListener("keydown", e => {
-        if (e.key === "Enter") addToQueue();
+    taskInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            addToQueue();
+        }
     });
-    priorityInput.addEventListener("keydown", e => {
-        if (e.key === "Enter") addToQueue();
+    priorityInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            addToQueue();
+            return;
+        }
+
+        // Allow creating a task via Tab when the inputs are valid.
+        // Only handle forward Tab (Shift+Tab should behave normally).
+        if (e.key === "Tab" && !e.shiftKey) {
+            const task = taskInput.value.trim();
+            const priority = parseInt(priorityInput.value);
+            const isValidPriority = !isNaN(priority) && priority >= 1 && priority <= 10;
+
+            if (task && isValidPriority) {
+                e.preventDefault();
+                addToQueue();
+            }
+        }
     });
 
     renderTable();
