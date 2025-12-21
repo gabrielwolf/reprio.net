@@ -169,13 +169,26 @@
         sel.addRange(range);
     }
 
+    function selectAllContent(el) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        if (!sel) return;
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
     function focusEditableCell(itemId, field) {
         if (!itemId || !field) return;
         const selector = `td[contenteditable="true"][data-item-id="${itemId}"][data-field="${field}"]`;
         const cell = tableBody.querySelector(selector);
         if (!cell) return;
         cell.focus();
-        placeCaretAtEnd(cell);
+        if (field === "priority" || cell.dataset.field === "priority") {
+            selectAllContent(cell);
+        } else {
+            placeCaretAtEnd(cell);
+        }
     }
 
     function handleEditableTab(e) {
@@ -193,7 +206,11 @@
 
         e.preventDefault();
         next.focus();
-        placeCaretAtEnd(next);
+        if (next.dataset.field === "priority") {
+            selectAllContent(next);
+        } else {
+            placeCaretAtEnd(next);
+        }
     }
 
     // Insert plain text at the current caret position (avoids HTML insertion and keeps the cursor stable)
@@ -267,6 +284,11 @@
             priorityCell.tabIndex = 0;
             priorityCell.dataset.itemId = item.id;
             priorityCell.dataset.field = "priority";
+
+            priorityCell.addEventListener("focus", () => {
+                // Delay so click/mouseup doesn't collapse the selection
+                setTimeout(() => selectAllContent(priorityCell), 0);
+            });
 
             priorityCell.addEventListener("paste", (e) => {
                 e.preventDefault();
