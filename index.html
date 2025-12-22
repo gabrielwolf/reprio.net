@@ -12,6 +12,8 @@
         }
 
         body {
+            display: grid;
+            grid-auto-rows: min-content auto min-content;
             font-family: Avenir Next, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif;
             font-size: 15px;
             line-height: 1.6;
@@ -21,9 +23,23 @@
             padding: 1rem;
         }
 
+        header {
+            grid-row: 2;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
         main {
+            grid-row: 1;
             padding: 4rem;
             background: #def;
+        }
+
+        footer {
+            grid-row: 3;
+            text-align: right;
         }
 
         h1, h2 {
@@ -97,17 +113,16 @@
 <body>
 <header>
     <h1>reprio.net</h1>
-    <h2>A simple online priority queue for organising your tasks</h2>
+    <h2>A simple priority queue for organising tasks</h2>
     <ul>
         <li>Add a task: 1. Type it 2. Type the priority 3. Press return (or leave the cell by pressing tab).</li>
         <li>Change a task: 1. Select it 2. Change it. 3. Leave the cell.</li>
         <li>Security: Your data is stored in the browser (via localStorage).<br>
             Press reset, or delete your browser’s cache and you’re safe.<br>
-            But remember, everyone with access to your computer and browser can read as long as data is stored... no magic here.
+            But remember, everyone with physical access to your browser window can read as long as data is stored... no magic here.
         </li>
         <li>Backup: Press the import and export buttons. (Downloads a file in JSON format.)</li>
     </ul>
-    <p>That’s it. Happy prioritising! :)</p>
 </header>
 <main>
     <div style="display: flex; align-items: center; width: 100%; gap: 0.5rem;">
